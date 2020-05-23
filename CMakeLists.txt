@@ -41,12 +41,11 @@ endif()
 #######################################
 
 
-add_executable(ex4Tests SimpleTest.cpp)
+add_executable(ex4Tests runner.cpp SimpleTest.h BitUtilsTests.h)
 target_include_directories(ex4Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
 target_link_libraries(ex4Tests PRIVATE VirtualMemory gtest_main)
-set_property(TARGET ex4Tests PROPERTY CXX_STANDARD 11)
+set_property(TARGET ex4Tests PROPERTY CXX_STANDARD 14)
 target_compile_options(ex4Tests PUBLIC -Wall -Wextra)
 
-target_compile_definitions(ex4Tests PUBLIC TEST_DATA_PATH="/tmp/testData")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

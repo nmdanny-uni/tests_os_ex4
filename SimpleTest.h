@@ -1,3 +1,5 @@
+#pragma once
+
 #include "VirtualMemory.h"
 
 #include <gtest/gtest.h>
@@ -17,6 +19,6 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory)
         word_t value;
         VMread(5 * i * PAGE_SIZE, &value);
         printf("reading from %llu %d\n", (long long int) i, value);
-        EXPECT_EQ(uint64_t(value), i);
+        ASSERT_EQ(uint64_t(value), i);
     }
 }
