@@ -24,14 +24,54 @@ void setLogging(bool doLog)
 #endif
 }
 
+using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
 
+::testing::AssertionResult WroteExpectedValues(const PhysicalAddressToValueMap& map)
+{
+    for (const auto& kvp: map)
+    {
+      const uint64_t &physicalAddr = kvp.first;
+      const word_t &expectedValue = kvp.second;
+
+      word_t value;
+      PMread(physicalAddr, &value);
+
+      if (value != expectedValue) {
+        return ::testing::AssertionFailure()
+               << "Expected RAM at address " << physicalAddr
+               << " to contain value " << expectedValue;
+        };
+    }
+    return ::testing::AssertionSuccess();
+}
+
+
+/** The simplest test
+ *  We are starting with completely empty RAM, we write a single value and then read it.
+ *  Since the table is completely empty, we expect that the page tables used during translation
+ *  (there are 4) will be created at the first 4 frames (technically the 1st frame already exists
+ *                                                       and doesn't need to be created)
+ * */
 TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 {
-    VMinitialize();
+    fullyInitialize();
     uint64_t addr = 0b10001011101101110011;
     ASSERT_EQ(VMwrite(addr, 1337), 1) << "write should succeed";
 
-    // note, we expect the following writes to occur:
+    // The offsets(for the page tables) of the above virtual address are
+    // 8, 11, 11, 7, 3
+    // Therefore, since we're starting with a completely empty table(see 'fullyInitialize' impl)
+    // we expect the following to occur:
+    // write(8, 1)     <- table at physical addr 0, offset is 8, next table at frame index 1
+    // write(27, 2)    <- table at physical addr 16, offset is 11, next table at frame index 2
+    // write(43, 3)    <- table at physical addr 32, offset is 11, next table at frame index 2
+    // write(55, 4)    <- table at physical addr 48, offset is 7, next table at frame index 3
+    // write(67, 1337) <- table at physical addr 64, offset is 3, write 1337 in this address.
+
+    std::unordered_map<uint64_t, word_t> addrToPos {
+        {8, 1}, {27, 2}, {43, 3}, {55, 4}, {67, 1337}
+    };
+    EXPECT_TRUE(WroteExpectedValues(addrToPos));
 
     word_t res;
     ASSERT_EQ(VMread(addr, &res), 1) << "read should succeed";
@@ -47,6 +87,11 @@ struct ReadWriteTestFixture : public ::testing::TestWithParam<Params>
 
 
 
+/** The following test writes random values in a loop,
+ *  in the range [from, from + increment, from + 2 * increment, ..., to]
+ *
+ *  It then checks that the expected values were gotten
+ */
 TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 {
     const char* testName;
