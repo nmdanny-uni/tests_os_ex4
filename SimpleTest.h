@@ -1,8 +1,8 @@
 #pragma once
 
 #include "MemoryConstants.h"
+#include "PhysicalMemory.h"
 #include "VirtualMemory.h"
-#include "PhysicalMemory.cpp"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -19,16 +19,11 @@ void setLogging(bool doLog)
     if (!doLog) {
         spdlog::set_level(spdlog::level::off);
     } else {
-        spdlog::set_level(spdlog::level::info);
+        spdlog::set_level(spdlog::level::trace);
     }
 #endif
 }
 
-void totallyInitialize(bool doLog=false)
-{
-    RAM.clear();
-    initialize();
-}
 
 TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 {
@@ -74,7 +69,7 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 
     setLogging(false);
     if (blankSlate) {
-        totallyInitialize();
+        fullyInitialize();
     } else {
         VMinitialize();
     }
@@ -98,7 +93,10 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 }
 
 std::vector<Params> values = {
-    {"Basic", 0, 14 * NUM_FRAMES, 1, true}
+    {"MostBasic", 0, NUM_FRAMES, 1, true},
+    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, true},
+    // {"MostBasic", 0, NUM_FRAMES, 1, false},
+    // {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false}
 };
 
 INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
@@ -124,9 +122,10 @@ INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
 
 
 
-TEST(SimpleTests, Can_Read_Then_Write_Memory)
+TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 {
     VMinitialize();
+    setLogging(true);
     for (uint64_t i = 0; i < (2 * NUM_FRAMES); ++i) {
         printf("writing to %llu\n", (long long int) i);
         ASSERT_EQ(VMwrite(5 * i * PAGE_SIZE, i), 1) << "write should succeed";
