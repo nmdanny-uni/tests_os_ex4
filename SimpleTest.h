@@ -47,23 +47,34 @@ TEST(FlowTests, FlowTest)
     })) << "PMrestore(4, 6) should've been called, see PDF";
 
 
+    // the physical location 14 shouldn't have been changed
+    word_t valueAtPhysAddr14;
+    PMread(14, &valueAtPhysAddr14);
+    ASSERT_EQ(valueAtPhysAddr14, 0) << "Nothing in thee've touched physical address 14";
+    // the virtual address 6 will map to physical address 14 (see PDF why this is true)
+    PMwrite(14, 1337);
+
     ASSERT_EQ(VMread(6, &gotten), 1) << "VMread(6, &gotten) should succeed";
+    ASSERT_EQ(gotten, 1337) << "VMread(6, &gotten) should've yielded 1337, see PMwrite in test code above";
     // see pdf pages 15-16
     expectedAddrToValMap = {
         {0, 1},
-        {2, 5}, // added during read, see page
+        {2, 5}, // added during VMread(6)
         {3, 2},
         {5, 3},
         {6, 4},
         {9, 3},
-        {11, 6},  // added during read
-        {7, gotten} // added during read(this is what's returned from
+        {11, 6},  // added during VMread(6)
+        {13, 7}, // added during VMread(6)
+        {14, 1337} // added during VMread(6)
     };
     ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMrestore(7, 3)"
     })) << "PMrestore(7, 3) should've been called, see PDF page 16";
+
+    ASSERT_EQ(VMread(31, &gotten), 1) << "VMread(31, &gotten) should succeed";
 
 }
 
