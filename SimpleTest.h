@@ -3,6 +3,7 @@
 #include "MemoryConstants.h"
 #include "PhysicalMemory.h"
 #include "VirtualMemory.h"
+#include "Common.h"
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -13,37 +14,60 @@
 #include <random>
 
 
-void setLogging(bool doLog)
+#ifdef TEST_CONSTANTS
+
+TEST(FlowTests, FlowTest)
 {
-#ifdef USE_SPEEDLOG
-    if (!doLog) {
-        spdlog::set_level(spdlog::level::off);
-    } else {
-        spdlog::set_level(spdlog::level::trace);
-    }
-#endif
+    fullyInitialize();
+    VMinitialize();
+    setLogging(true);
+
+    Trace trace;
+    ASSERT_EQ(VMwrite(13, 3), 1) << "VMwrite(13, 3) should succeed";
+
+    // See Flow example pdf(pages 3-14)
+    PhysicalAddressToValueMap expectedAddrToValMap {
+        {0, 1},
+        {3, 2},
+        {5, 3},
+        {6, 4},
+        {9, 3} // contains the value we've just written, 3
+    };
+    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+
+
+    word_t gotten;
+    ASSERT_EQ(VMread(13, &gotten), 1) << "VMread(13, &gotten) should succeed";
+    ASSERT_EQ(gotten, 3) << "Should've read 13 from gotten";
+
+    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap)) << "Reading a value that was just written shouldn't cause page tables to change";
+
+    ASSERT_TRUE(LinesContainedInTrace(trace, {
+        "PMrestore(4, 6)"
+    })) << "PMrestore(4, 6) should've been called, see PDF";
+
+
+    ASSERT_EQ(VMread(6, &gotten), 1) << "VMread(6, &gotten) should succeed";
+    // see pdf pages 15-16
+    expectedAddrToValMap = {
+        {0, 1},
+        {2, 5}, // added during read, see page
+        {3, 2},
+        {5, 3},
+        {6, 4},
+        {9, 3},
+        {11, 6},  // added during read
+        {7, gotten} // added during read(this is what's returned from
+    };
+    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+
+    ASSERT_TRUE(LinesContainedInTrace(trace, {
+        "PMrestore(7, 3)"
+    })) << "PMrestore(7, 3) should've been called, see PDF page 16";
+
 }
 
-using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
-
-::testing::AssertionResult WroteExpectedValues(const PhysicalAddressToValueMap& map)
-{
-    for (const auto& kvp: map)
-    {
-      const uint64_t &physicalAddr = kvp.first;
-      const word_t &expectedValue = kvp.second;
-
-      word_t value;
-      PMread(physicalAddr, &value);
-
-      if (value != expectedValue) {
-        return ::testing::AssertionFailure()
-               << "Expected RAM at address " << physicalAddr
-               << " to contain value " << expectedValue;
-        };
-    }
-    return ::testing::AssertionSuccess();
-}
+#else
 
 
 /** The simplest test
@@ -55,13 +79,19 @@ using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
 TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 {
     fullyInitialize();
+    VMinitialize();
+    setLogging(true);
     uint64_t addr = 0b10001011101101110011;
     ASSERT_EQ(VMwrite(addr, 1337), 1) << "write should succeed";
 
     // The offsets(for the page tables) of the above virtual address are
     // 8, 11, 11, 7, 3
     // Therefore, since we're starting with a completely empty table(see 'fullyInitialize' impl)
-    // we expect the following to occur:
+    // every page table found will be according to the second criteria in the PDF(an unused frame),
+    // and not the first one(as all frames containing empty tables are exactly those we just created
+    // during the current address translation, thus they can't be used)
+    //
+    // So, we expect the following to occur:
     // write(8, 1)     <- table at physical addr 0, offset is 8, next table at frame index 1
     // write(27, 2)    <- table at physical addr 16, offset is 11, next table at frame index 2
     // write(43, 3)    <- table at physical addr 32, offset is 11, next table at frame index 2
@@ -78,6 +108,23 @@ TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
     ASSERT_EQ(res, 1337) << "wrong value was read";
 }
 
+TEST(SimpleTests, Can_Evict_And_Restore_Memory)
+{
+    fullyInitialize();
+    VMinitialize();
+    setLogging(false);
+
+    std::random_device rd;
+    std::seed_seq seed {
+        static_cast<long unsigned int>(1337),
+        /* rd() */
+            };
+    std::default_random_engine eng {seed};
+
+
+
+
+}
 
 // Params: test name, "from", "to", "increment", start from blank slate?
 using Params = std::tuple<const char*, uint64_t, uint64_t, uint64_t, bool>;
@@ -115,6 +162,7 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
     setLogging(false);
     if (blankSlate) {
         fullyInitialize();
+        VMinitialize();
     } else {
         VMinitialize();
     }
@@ -140,8 +188,8 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 std::vector<Params> values = {
     {"MostBasic", 0, NUM_FRAMES, 1, true},
     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, true},
-    // {"MostBasic", 0, NUM_FRAMES, 1, false},
-    // {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false}
+     {"MostBasic", 0, NUM_FRAMES, 1, false},
+     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false}
 };
 
 INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
@@ -169,6 +217,7 @@ INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
 
 TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 {
+    fullyInitialize();
     VMinitialize();
     setLogging(true);
     for (uint64_t i = 0; i < (2 * NUM_FRAMES); ++i) {
@@ -186,3 +235,5 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
         ASSERT_EQ(uint64_t(value), i) << "wrong value was read";
     }
 }
+
+#endif

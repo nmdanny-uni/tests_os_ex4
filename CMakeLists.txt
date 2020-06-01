@@ -41,9 +41,9 @@ endif()
 #######################################
 
 
-add_executable(ex4Tests runner.cpp SimpleTest.h BitUtilsTests.h)
+add_executable(ex4Tests runner.cpp SimpleTest.h BitUtilsTests.h Common.h)
 target_include_directories(ex4Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
-target_link_libraries(ex4Tests PRIVATE VirtualMemory gtest_main)
+target_link_libraries(ex4Tests PRIVATE TestVirtualMemory gtest_main)
 set_property(TARGET ex4Tests PROPERTY CXX_STANDARD 14)
 target_compile_options(ex4Tests PUBLIC -Wall -Wextra)
 
