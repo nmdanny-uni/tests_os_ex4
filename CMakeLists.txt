@@ -40,12 +40,33 @@ endif()
 
 #######################################
 
+if(NOT vm_source_files)
+    message(FATAL_ERROR "You did not set the list of source files in your CMakeLists.txt, make sure you read the README")
+endif()
 
-add_executable(ex4Tests runner.cpp SimpleTest.h BitUtilsTests.h Common.h)
-target_include_directories(ex4Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
-target_link_libraries(ex4Tests PRIVATE TestVirtualMemory gtest_main)
-set_property(TARGET ex4Tests PROPERTY CXX_STANDARD 14)
-target_compile_options(ex4Tests PUBLIC -Wall -Wextra)
 
+
+set(test_sources SimpleTest.cpp Common.h)
+
+set(test_compile_options -Wall -Wextra -g)
+
+if(INCLUDE_PRIVATE_TESTS)
+    list(APPEND test_sources private/BitUtilsTests.cpp)
+endif()
+
+add_executable(ex4TestsNormalConstants ${test_sources})
+target_include_directories(ex4TestsNormalConstants PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
+target_link_libraries(ex4TestsNormalConstants PRIVATE VirtualMemory gtest_main)
+set_property(TARGET ex4TestsNormalConstants PROPERTY CXX_STANDARD 11)
+target_compile_options(ex4TestsNormalConstants PUBLIC ${test_compile_options})
+
+# The difference between these configurations is that the one below links to 'TestVirtualMemory'
+# and the above links to 'VirtualMemory' library.
+
+add_executable(ex4TestsSmallConstants ${test_sources})
+target_include_directories(ex4TestsSmallConstants PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
+target_link_libraries(ex4TestsSmallConstants PRIVATE TestVirtualMemory gtest_main)
+set_property(TARGET ex4TestsSmallConstants PROPERTY CXX_STANDARD 11)
+target_compile_options(ex4TestsSmallConstants PUBLIC ${test_compile_options})
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

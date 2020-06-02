@@ -1,5 +1,3 @@
-#pragma once
-
 #include "MemoryConstants.h"
 #include "PhysicalMemory.h"
 #include "VirtualMemory.h"
@@ -31,14 +29,17 @@ TEST(FlowTests, FlowTest)
         {6, 4},
         {9, 3} // contains the value we've just written, 3
     };
-    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+
+    PhysicalAddressToValueMap  gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
+    ASSERT_EQ(expectedAddrToValMap, gottenAddrToValMap) << "After doing VMwrite(13, 3), Physical memory contents are different than expected";
 
 
     word_t gotten;
     ASSERT_EQ(VMread(13, &gotten), 1) << "VMread(13, &gotten) should succeed";
     ASSERT_EQ(gotten, 3) << "Should've read 13 from gotten";
 
-    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap)) << "Reading a value that was just written shouldn't cause page tables to change";
+    gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
+    ASSERT_EQ(expectedAddrToValMap, gottenAddrToValMap) << "Reading a value that was just written shouldn't cause page tables to change.";
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMrestore(4, 6)"
@@ -66,7 +67,10 @@ TEST(FlowTests, FlowTest)
         {13, 7}, // added during VMread(6)
         {14, 1337} // added during VMread(6)
     };
-    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+
+
+    gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
+    ASSERT_EQ(expectedAddrToValMap, gottenAddrToValMap) << "After doing VMread(6, &gotten), physical memory contents are different than expected.";
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMrestore(7, 3)"
@@ -89,7 +93,7 @@ TEST(FlowTests, FlowTest)
         {2, 5},
         {3, 0},
         {4, 0},
-        {5, 7}, // TODO in the pdf this is 0, see moodle
+        {5, 7},
         {6, 0},
         {7, 2},
         {8, 0},
@@ -102,13 +106,16 @@ TEST(FlowTests, FlowTest)
         {15, 7331},
     };
 
-    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+    gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
+    ASSERT_EQ(expectedAddrToValMap, gottenAddrToValMap) << "After doing VMread(31), physical memory contents are different than expected.";
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMevict(4, 6)", // see pdf page 20
         "PMevict(7, 3)",  // see pdf page 26-27          now page number 3 contains VM[6]=1337, and VM[7]=unknown
         "PMrestore(7, 15)" // see pdf page 26-27
     })) << "See PDF why these evicts were expected";
+
+    // the following isn't in the PDF, but should still work
 
     // page 3 at offset 0 includes 1337, that is virtual address 0b00110 = 6
     ASSERT_EQ(VMread(6, &gotten), 1) << "should be able to read value";
@@ -118,7 +125,7 @@ TEST(FlowTests, FlowTest)
 #else
 
 
-/** The simplest test
+/** The simplest test when using the default constants
  *  We are starting with completely empty RAM, we write a single value and then read it.
  *  Since the table is completely empty, we expect that the page tables used during translation
  *  (there are 4) will be created at the first 4 frames (technically the 1st frame already exists
@@ -146,10 +153,12 @@ TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
     // write(55, 4)    <- table at physical addr 48, offset is 7, next table at frame index 3
     // write(67, 1337) <- table at physical addr 64, offset is 3, write 1337 in this address.
 
-    std::unordered_map<uint64_t, word_t> addrToPos {
+    PhysicalAddressToValueMap expectedAddrToVal {
         {8, 1}, {27, 2}, {43, 3}, {55, 4}, {67, 1337}
     };
-    EXPECT_TRUE(WroteExpectedValues(addrToPos));
+
+    auto gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToVal );
+    ASSERT_EQ(expectedAddrToVal , gottenAddrToValMap) << "After doing VMwrite(addr, 1337), physical memory contents are different than expected";
 
     word_t res;
     ASSERT_EQ(VMread(addr, &res), 1) << "read should succeed";
@@ -159,23 +168,6 @@ TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 
 #endif
 
-TEST(SimpleTests, Can_Evict_And_Restore_Memory)
-{
-    fullyInitialize();
-    VMinitialize();
-    setLogging(false);
-
-    std::random_device rd;
-    std::seed_seq seed {
-        static_cast<long unsigned int>(1337),
-        /* rd() */
-            };
-    std::default_random_engine eng {seed};
-
-
-
-
-}
 
 // Params: test name, from, to, increment, start from blank slate
 using Params = std::tuple<const char*, uint64_t, uint64_t, uint64_t, bool>;
@@ -202,18 +194,12 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 
     if (increment == 0 || from > VIRTUAL_MEMORY_SIZE || to > VIRTUAL_MEMORY_SIZE)
     {
-        std::cout << "Unable to run test with invalid parameters " << std::endl;
-        return;
+        GTEST_SKIP() << "Unable to run this test configuration as the parameters are too big for the given memory constants";
     }
 
 
-    std::random_device rd;
-    std::seed_seq seed {
-        static_cast<long unsigned int>(1337),
-        /* rd() */
-            };
-    std::default_random_engine eng {seed};
-    std::uniform_int_distribution<word_t> dist(1337, 0x7FFFFFFF);
+    std::default_random_engine eng = getRandomEngine();
+    std::uniform_int_distribution<word_t> dist(1, 0x7FFFFFFF);
     std::map<uint64_t, word_t> ixToVal;
 
 
@@ -281,8 +267,9 @@ INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
 
 
 
-// debugging aid, enable this so t
-const bool PERFORM_INTERMEDIATE_CHECKS = true;
+// debugging aid, enable this so that after every change, we'll
+// check the entire table and see if it's valid.
+const bool PERFORM_INTERMEDIATE_CHECKS = false;
 
 TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 {
@@ -313,9 +300,6 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
                 {
                     continue;
                 }
-//            if (j == 0 && i == 46) {
-//                setLogging(true);
-//            }
                 word_t checkVal;
                 ASSERT_EQ(VMread(5 * j * PAGE_SIZE, &checkVal), 1) << "read should succeed";
                 if (uint64_t(checkVal) != j)
@@ -349,3 +333,8 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 }
 
 
+
+TEST(SimpleTests, RandomTest)
+{
+
+}

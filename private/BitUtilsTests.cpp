@@ -1,4 +1,5 @@
-#pragma once
+/// These are private implementation tests, they are not part of the public test suite,
+/// So please ignore this file.
 
 #include "VirtualMemory.h"
 #include "BitUtils.h"

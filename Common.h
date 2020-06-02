@@ -18,6 +18,10 @@
 #include <string>
 #include <unordered_map>
 
+/** This function is mostly for my convenience when debugging,
+ *  you can use it if you have some way to enable/disable print statements at runtime.
+ * @param doLog Should logging be enabled or disabled?
+ */
 void setLogging(bool doLog)
 {
 	(void)doLog;
@@ -30,25 +34,24 @@ void setLogging(bool doLog)
 #endif
 }
 
+/** Maps between expected physical addresses to their values in memory. */
 using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
 
-::testing::AssertionResult WroteExpectedValues(const PhysicalAddressToValueMap& map)
+/**
+ * Reads all physical memory addresses in memory who are present as keys in 'map'
+ * @param map Used for its keys, indicates which keys the output map will contain.
+ * @return Maps read physical memory addresses to their actual values in RAM
+ */
+PhysicalAddressToValueMap readGottenPhysicalAddressToValueMap(const PhysicalAddressToValueMap& map)
 {
+    PhysicalAddressToValueMap gotten;
     for (const auto& kvp: map)
     {
-      const uint64_t &physicalAddr = kvp.first;
-      const word_t &expectedValue = kvp.second;
-
-      word_t value;
-      PMread(physicalAddr, &value);
-
-      if (value != expectedValue) {
-        return ::testing::AssertionFailure()
-               << "Expected RAM at address " << physicalAddr
-               << " to contain value " << expectedValue << ", but instead it contains " << value;
-        };
+        word_t gottenValue;
+        PMread(kvp.first, &gottenValue);
+        gotten[kvp.first] = gottenValue;
     }
-    return ::testing::AssertionSuccess();
+    return gotten;
 }
 
 ::testing::AssertionResult LinesContainedInTrace(Trace& trace, std::initializer_list<std::string> lines)
@@ -69,4 +72,29 @@ using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
     return ::testing::AssertionSuccess();
 }
 
+// by default, use the same seed so that test results will be consistent with several runs.
+const bool USE_DETERMINED_SEED = true;
 
+/** Returns a random engine using either a known seed, or a seed determined at startup
+ * @param useDeterminedSeed Use known seed?
+ * @return Engine
+ */
+std::default_random_engine getRandomEngine(bool useDeterminedSeed = USE_DETERMINED_SEED)
+{
+   if (useDeterminedSeed)
+   {
+       std::seed_seq seed {
+           static_cast<long unsigned int>(1337),
+       };
+       std::default_random_engine eng {seed};
+       return eng;
+   } else
+   {
+       std::random_device rd;
+       std::seed_seq seed {
+            rd()
+       };
+       std::default_random_engine eng {seed};
+       return eng;
+   }
+}
