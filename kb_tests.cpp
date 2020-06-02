@@ -12,10 +12,12 @@
 
 #ifdef TEST_CONSTANTS
 
+/** This test is only available when compiling with small memory constants
+ *  It is based on the Example pdf, I recommend you try this test first
+ **/
 TEST(FlowTests, FlowTest)
 {
-    fullyInitialize();
-    VMinitialize();
+    fullyInitialize(InitializationMethod::ZeroMemory);
     setLogging(true);
 
     Trace trace;
@@ -133,15 +135,14 @@ TEST(FlowTests, FlowTest)
  * */
 TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 {
-    fullyInitialize();
-    VMinitialize();
+    fullyInitialize(InitializationMethod::ZeroMemory);
     setLogging(true);
     uint64_t addr = 0b10001011101101110011;
     ASSERT_EQ(VMwrite(addr, 1337), 1) << "write should succeed";
 
     // The offsets(for the page tables) of the above virtual address are
     // 8, 11, 11, 7, 3
-    // Therefore, since we're starting with a completely empty table(see 'fullyInitialize' impl)
+    // Therefore, since we're starting with a completely empty table
     // every page table found will be according to the second criteria in the PDF(an unused frame),
     // and not the first one(as all frames containing empty tables are exactly those we just created
     // during the current address translation, thus they can't be used)
@@ -169,51 +170,50 @@ TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
 #endif
 
 
-// Params: test name, from, to, increment, start from blank slate
-using Params = std::tuple<const char*, uint64_t, uint64_t, uint64_t, bool>;
+// Params: test name, from, to, increment, Initialization method
+using Params = std::tuple<const char*, uint64_t, uint64_t, uint64_t, InitializationMethod>;
 
 struct ReadWriteTestFixture : public ::testing::TestWithParam<Params>
 {};
 
 
-
 /** The following test writes random values in a loop,
- *  in the range [from, from + increment, from + 2 * increment, ..., to]
+ *  in the address range [from, from + increment, from + 2 * increment, ..., to)
  *
- *  It then checks that the expected values were gotten
+ *  It then reads values in those same addresses, and ensures the gotten values are as expected.
+ *
+ *  This is a parameterized test, see TESTS_PARAMETERS on which parameters are passed
  */
-TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
+TEST_P(ReadWriteTestFixture, Deterministic_Addresses_Random_Values)
 {
     const char* testName;
     uint64_t from;
     uint64_t to;
     uint64_t increment;
-    bool blankSlate;
+    InitializationMethod method;
 
-    std::tie(testName, from, to, increment, blankSlate) = GetParam();
+    // GetParam() returns a tuple of parameters, depending on which instance of this test
+    // fixture is being ran.
+    std::tie(testName, from, to, increment, method) = GetParam();
 
-    if (increment == 0 || from > VIRTUAL_MEMORY_SIZE || to > VIRTUAL_MEMORY_SIZE)
+    if (increment == 0 || from >= to || to > VIRTUAL_MEMORY_SIZE)
     {
         GTEST_SKIP() << "Unable to run this test configuration as the parameters are too big for the given memory constants";
     }
 
 
     std::default_random_engine eng = getRandomEngine();
-    std::uniform_int_distribution<word_t> dist(1, 0x7FFFFFFF);
+    std::uniform_int_distribution<word_t> dist(0, std::numeric_limits<word_t>::max());
     std::map<uint64_t, word_t> ixToVal;
 
 
     setLogging(false);
-    if (blankSlate) {
-        fullyInitialize();
-        VMinitialize();
-    } else {
-        VMinitialize();
-    }
+    fullyInitialize(method);
+
     for (uint64_t i = from; i < to; i += increment) {
         word_t genValue = dist(eng);
         ixToVal[i] = genValue;
-        /* printf("writing %ud to %llu\n", genValue, (long long int) i); */
+//        std::cout << "Writing " << genValue << " to address " << i << std::endl;
         ASSERT_EQ(VMwrite(i, genValue), 1) << "write should succeed";
 
         word_t value;
@@ -223,43 +223,40 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 
     for (uint64_t i = from; i < to; i += increment) {
         word_t value;
-        /* printf("reading from %llu %d\n", (long long int) i, value); */
         ASSERT_EQ(VMread(i, &value), 1) << "read should succeed";
+//        std::cout << "Read " << value << " from address " << i << std::endl;
         ASSERT_EQ(value, ixToVal.at(i)) << "wrong value was read";
     }
 }
 
-std::vector<Params> values = {
-    // 'true' for blank slate(RAM only contains 0)
-    {"MostBasic", 0, NUM_FRAMES, 1, true},
-    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, true},
-    // without blank slate, that is, initial memory might be random
-    // apart from root table which is initialized to be 0
-    {"MostBasic", 0, NUM_FRAMES, 1, false},
-    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false},
+std::vector<Params> TESTS_PARAMETERS = {
+    {"MostBasic", 0, NUM_FRAMES, 1, InitializationMethod::ZeroMemory},
+    {"MostBasic", 0, NUM_FRAMES, 1, InitializationMethod::FillWithSpecificValue},
+    {"MostBasic", 0, NUM_FRAMES, 1, InitializationMethod::RandomizeValues},
 
-    // more variations
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE, false},
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/2, false},
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/4, false},
+    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, InitializationMethod::ZeroMemory},
+    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, InitializationMethod::FillWithSpecificValue},
+    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, InitializationMethod::RandomizeValues},
+
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE, InitializationMethod::RandomizeValues},
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/2, InitializationMethod::RandomizeValues},
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/4, InitializationMethod::RandomizeValues},
 };
 
-INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
-                         ::testing::ValuesIn(values),
+INSTANTIATE_TEST_SUITE_P(RandomTests, ReadWriteTestFixture,
+                         ::testing::ValuesIn(TESTS_PARAMETERS),
                          [](const testing::TestParamInfo<ReadWriteTestFixture::ParamType>& info) {
                              std::stringstream ss;
                              const char* testName = std::get<0>(info.param);
                              uint64_t from = std::get<1>(info.param);
                              uint64_t to = std::get<2>(info.param);
                              uint64_t increment = std::get<3>(info.param);
-                             uint64_t blank = std::get<4>(info.param);
+                             InitializationMethod method = std::get<4>(info.param);
                              ss << testName;
-                             if (blank) {
-                                 ss << "_blank_slate";
-                             }
                              ss << "_from_" << from;
                              ss << "_to_" << to;
                              ss << "_increment_" << increment;
+                             ss << "_initializationMethod_" << int(method);
                              return ss.str();
                          }
 );
@@ -267,14 +264,20 @@ INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
 
 
 
-// debugging aid, enable this so that after every change, we'll
-// check the entire table and see if it's valid.
+/** Debugging aid, enable this so that after every change, we'll check the
+ *  entire table and see if it still contains valid values.
+ *
+ *  Note that merely performing this check will affect the internal page tables
+ *  structure of the RAM, so disabling/enabling might uncover bugs.
+ */
 const bool PERFORM_INTERMEDIATE_CHECKS = false;
 
+/** This is based on the original SimpleTest, with some adjustments
+ *  for easier debugging(I hope)
+ **/
 TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 {
-    fullyInitialize();
-    VMinitialize();
+    fullyInitialize(InitializationMethod::ZeroMemory);
     setLogging(true);
 
 
@@ -334,7 +337,40 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 
 
 
-TEST(SimpleTests, RandomTest)
-{
+const uint64_t RANDOM_TEST_ITERATIONS_COUNT = 10000;
 
+
+TEST(RandomTests, Random_Addresses_Random_Values)
+{
+    fullyInitialize(InitializationMethod::RandomizeValues);
+    std::unordered_map<uint64_t, word_t> vmToValue;
+    std::default_random_engine eng = getRandomEngine();
+    std::uniform_int_distribution<uint64_t> vmAddrDist(0, VIRTUAL_MEMORY_SIZE-1);
+    std::uniform_int_distribution<word_t> valueDist(0, std::numeric_limits<word_t>::max());
+
+    for (uint64_t i = 0; i < RANDOM_TEST_ITERATIONS_COUNT; ++i)
+    {
+        uint64_t virtAddr = vmAddrDist(eng);
+        word_t val = valueDist(eng);
+        ASSERT_EQ(VMwrite(virtAddr, val), 1) << "write should succeed";
+        vmToValue[virtAddr] = val;
+    }
+
+    for (const auto& kvp: vmToValue)
+    {
+        word_t readVal;
+        ASSERT_EQ(VMread(kvp.first, &readVal), 1) << "read should succeed";
+        ASSERT_EQ(readVal, kvp.second) << "read value is different than the value that was expected";
+
+    }
+}
+
+TEST(ErrorChecks, ErrorChecks)
+{
+    ASSERT_EQ(VMwrite(VIRTUAL_MEMORY_SIZE, 1337), 0) << "Writing above virtual memory size should fail";
+    word_t val = 2337;
+    ASSERT_EQ(VMread(VIRTUAL_MEMORY_SIZE, &val), 0) << "Writing above virtual memory size should fail";
+
+    // TODO check if this is expected/defined behavior:
+    ASSERT_EQ(val, 2337) << "Failed read shouldn't change passed in value";
 }

@@ -98,3 +98,68 @@ std::default_random_engine getRandomEngine(bool useDeterminedSeed = USE_DETERMIN
        return eng;
    }
 }
+typedef std::vector<word_t> page_t;
+
+extern std::vector<page_t> RAM;
+extern std::unordered_map<uint64_t, page_t> swapFile;
+
+
+/** This is an interesting value: note that no page table can have NUM_FRAMES in its content,
+ *  but actual pages(last layer in the hierarchy) can. Of course, when initializing RAM,
+ *  there's no such thing as invalid values.
+ */
+const word_t SPECIFIC_FILL_VALUE = static_cast<word_t>(NUM_FRAMES);
+
+/** How to initialize RAM memory at start of a test */
+enum class InitializationMethod
+{
+    /** all values in RAM will be initialized to 0 */
+    ZeroMemory = 0,
+
+    /** All values outside the root table will have "SPECIFIC_FILL_VALUE" */
+    FillWithSpecificValue = 1,
+
+
+    /** All values outside the root table will have random values */
+    RandomizeValues = 2
+};
+
+/** Initializes RAM according to given criteria, then calls VMinitialize
+ *  A correct implementation should work with any initialization method.
+ **/
+void fullyInitialize(InitializationMethod option) {
+    RAM.clear();
+
+    RAM.resize(NUM_FRAMES, page_t(PAGE_SIZE));
+
+    auto randomEngine = getRandomEngine();
+    std::uniform_int_distribution<word_t> dist(0, std::numeric_limits<word_t>::max());
+
+    for (page_t& page: RAM)
+    {
+        for (word_t& word: page)
+        {
+           if (option == InitializationMethod::ZeroMemory)
+           {
+               word = 0;
+           } else if (option == InitializationMethod::FillWithSpecificValue)
+           {
+               word = SPECIFIC_FILL_VALUE;
+           } else
+           {
+               word = dist(randomEngine);
+           }
+        }
+    }
+
+    // this should zero the root page table
+    VMinitialize();
+    for (uint64_t i=0; i < PAGE_SIZE; ++i)
+    {
+        word_t readVal;
+        PMread(i, &readVal);
+        // there should be no reason for this test to fail since VMinitialize
+        // is already implemented for you - this is mostly a sanity check
+        ASSERT_EQ(readVal, 0) << "Root page table should be zero after initializing";
+    }
+}

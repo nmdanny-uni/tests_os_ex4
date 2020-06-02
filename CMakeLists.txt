@@ -46,7 +46,7 @@ endif()
 
 
 
-set(test_sources SimpleTest.cpp Common.h)
+set(test_sources kb_tests.cpp Common.h)
 
 set(test_compile_options -Wall -Wextra -g)
 
