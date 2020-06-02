@@ -238,9 +238,12 @@ std::vector<Params> TESTS_PARAMETERS = {
     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, InitializationMethod::FillWithSpecificValue},
     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, InitializationMethod::RandomizeValues},
 
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE, InitializationMethod::RandomizeValues},
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/2, InitializationMethod::RandomizeValues},
-    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/4, InitializationMethod::RandomizeValues},
+    {"ManyAddresses_pageSizeIncrement", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE, InitializationMethod::RandomizeValues},
+    {"ManyAddresses_halfPageSizeIncrement", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/2, InitializationMethod::RandomizeValues},
+    {"ManyAddresses_quarterPageSizeIncrement", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/4, InitializationMethod::RandomizeValues},
+    {"ManyAddresses_always_inc1", 0, VIRTUAL_MEMORY_SIZE, 1, InitializationMethod::RandomizeValues},
+
+    // note, if you add your own configurations, make sure their generated names don't clash
 };
 
 INSTANTIATE_TEST_SUITE_P(RandomTests, ReadWriteTestFixture,
