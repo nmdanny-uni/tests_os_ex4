@@ -1,5 +1,12 @@
 # Tests for OS Exercise 4, Exercise 2020 - Hierarchial page tables
 
+## Requirements
+
+These tests should work in Linux systems including the Aquarium, and on Windows with WSL2. (Which recently came out, I highly recommend you try it)
+
+I haven't tested them on Mac or with normal Windows, and I have no idea if they work there. If you're having problems and you're sure you followed
+the instructions, try them on the Aquarium.
+
 ## Installation instructions
 
 1. From your project's root, perform `git clone https://github.cs.huji.ac.il/danielkerbel/tests_os_ex4.git tests`
@@ -26,11 +33,7 @@
             PhysicalMemory.h PhysicalMemory.cpp
             MemoryConstants.h
     # ------------- You may only modify the following section ----------- #
-
-            PMpointer.h
-            logger.h
-            exceptions.h exceptions.cpp
-            BitUtils.h
+            # add other source files here
             )
 
 
@@ -43,6 +46,13 @@
     set(vm_link_libraries)
     set(vm_compile_definitions INC_TESTING_CODE)
 
+    set(USE_SPEEDLOG OFF)
+
+    if(USE_SPEEDLOG)
+        add_subdirectory(spdlog)
+        list(APPEND vm_link_libraries spdlog::spdlog)
+        list(APPEND vm_compile_definitions USE_SPEEDLOG)
+    endif()
 
 
     add_library(VirtualMemory ${vm_source_files})
@@ -203,18 +213,8 @@ If you pass this test but fail more complicated examples, try creating similar t
 
 Some general tips are:
 
-- Use extensive logging in your program. While std::cout/printfs can work, I personally recommend
-  [spdlog](https://github.com/gabime/spdlog), which has some nice features:
 
-  - Uses format strings, similar to Python
-  - Much less verbose than std::cout or printf
-  - Allows multiple logging levels, which you can change at runtime, so you can hide non important stuff and show it only when necessary
-  - Terminal output is colored
   
-  (If you wish to use this library, all instructions are available at the library's [wiki](https://github.com/gabime/spdlog/wiki))
-  
-  At the very least I think you should have the ability to disable prints and enable them at runtime, it's very simple to implement with a global
-  variable.
 
 - Use many, many many asserts in your program. For reference, I have 38 asserts not including those in PhysicalMemory. 
   These have helped me uncover many bugs and better understand the exercise.
@@ -225,4 +225,27 @@ Some general tips are:
 - Make your own tests, test more complicated scenarios. `FlowTest` is a good example, you can expand on it or
   create more complicated scenarios (perhaps with the normal test constants)
     
+- Use extensive logging in your program. While std::cout/printfs can work, I personally recommend
+  [spdlog](https://github.com/gabime/spdlog), which has some nice features:
 
+  - Uses format strings, similar to Python
+  - Much less verbose than std::cout or printf
+  - Allows multiple logging levels, which you can change at runtime, so you can hide non important stuff and show it only when necessary
+  - Terminal output is colored
+
+  At the very least I think you should have the ability to disable prints and enable them at runtime, it's very simple to implement with a global
+  variable.
+  
+  If you wish to use this library, the CMakeLists.txt I provided above almsot takes care of everything,
+  you just need to download it into your project:
+
+  ```shell
+     cd PROJECT_ROOT
+     git clone https://github.com/gabime/spdlog/
+  ```
+             
+  (Or alternatively, `git submodule add https://github.com/gabime/spdlog/` if your project is using git)
+  And within your own CMakeLists, change `set(USE_SPEEDLOG OFF)` to `set(USE_SPEEDLOG ON)`
+  Then you'll also be able to use `setLogging` from `Commons.h` to toggle info traces on/off,
+  add `#include <spdlog/spdlog.h>` in your exercise implementation files and use it, see the rest of the instructions
+  on the library's [wiki](https://github.com/gabime/spdlog/wiki)
