@@ -4,8 +4,11 @@
 #include "PhysicalMemory.h"
 #include "VirtualMemory.h"
 
+#ifdef USE_SPEEDLOG
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#endif
+
 #include <gtest/gtest.h>
 #include <cstdio>
 #include <cassert>
@@ -13,14 +16,16 @@
 #include <random>
 #include <regex>
 #include <string>
+#include <unordered_map>
 
 void setLogging(bool doLog)
 {
+	(void)doLog;
 #ifdef USE_SPEEDLOG
     if (!doLog) {
         spdlog::set_level(spdlog::level::off);
     } else {
-        spdlog::set_level(spdlog::level::trace);
+        spdlog::set_level(spdlog::level::info);
     }
 #endif
 }

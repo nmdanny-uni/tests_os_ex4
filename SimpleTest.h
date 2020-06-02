@@ -5,8 +5,6 @@
 #include "VirtualMemory.h"
 #include "Common.h"
 
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <gtest/gtest.h>
 #include <cstdio>
 #include <cassert>
@@ -158,6 +156,9 @@ TEST(SimpleTests, Can_Read_And_Write_Memory_Once)
     ASSERT_EQ(res, 1337) << "wrong value was read";
 }
 
+
+#endif
+
 TEST(SimpleTests, Can_Evict_And_Restore_Memory)
 {
     fullyInitialize();
@@ -176,7 +177,7 @@ TEST(SimpleTests, Can_Evict_And_Restore_Memory)
 
 }
 
-// Params: test name, "from", "to", "increment", start from blank slate?
+// Params: test name, from, to, increment, start from blank slate
 using Params = std::tuple<const char*, uint64_t, uint64_t, uint64_t, bool>;
 
 struct ReadWriteTestFixture : public ::testing::TestWithParam<Params>
@@ -198,6 +199,13 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
     bool blankSlate;
 
     std::tie(testName, from, to, increment, blankSlate) = GetParam();
+
+    if (increment == 0 || from > VIRTUAL_MEMORY_SIZE || to > VIRTUAL_MEMORY_SIZE)
+    {
+        std::cout << "Unable to run test with invalid parameters " << std::endl;
+        return;
+    }
+
 
     std::random_device rd;
     std::seed_seq seed {
@@ -227,7 +235,7 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
         ASSERT_EQ(uint64_t(value), genValue) << "immediate read: wrong value read";
     }
 
-    for (uint64_t i = from; i < to; ++i) {
+    for (uint64_t i = from; i < to; i += increment) {
         word_t value;
         /* printf("reading from %llu %d\n", (long long int) i, value); */
         ASSERT_EQ(VMread(i, &value), 1) << "read should succeed";
@@ -236,10 +244,18 @@ TEST_P(ReadWriteTestFixture, Can_Read_Then_Write_Memory_Loop)
 }
 
 std::vector<Params> values = {
+    // 'true' for blank slate(RAM only contains 0)
     {"MostBasic", 0, NUM_FRAMES, 1, true},
     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, true},
-     {"MostBasic", 0, NUM_FRAMES, 1, false},
-     {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false}
+    // without blank slate, that is, initial memory might be random
+    // apart from root table which is initialized to be 0
+    {"MostBasic", 0, NUM_FRAMES, 1, false},
+    {"MoreFrames", 0, 14 * NUM_FRAMES, 1, false},
+
+    // more variations
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE, false},
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/2, false},
+    {"ManyAddresses", 0, VIRTUAL_MEMORY_SIZE, PAGE_SIZE/4, false},
 };
 
 INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
@@ -265,25 +281,71 @@ INSTANTIATE_TEST_SUITE_P(ReadWriteTests, ReadWriteTestFixture,
 
 
 
+// debugging aid, enable this so t
+const bool PERFORM_INTERMEDIATE_CHECKS = true;
+
 TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
 {
     fullyInitialize();
     VMinitialize();
     setLogging(true);
+
+
     for (uint64_t i = 0; i < (2 * NUM_FRAMES); ++i) {
-        printf("writing to %llu\n", (long long int) i);
+
+        if (5 * i * PAGE_SIZE >= VIRTUAL_MEMORY_SIZE)
+        {
+            continue;
+        }
+
+        std::cout << "Writing to " << 5 * i * PAGE_SIZE << " the value " << i << std::endl;
         ASSERT_EQ(VMwrite(5 * i * PAGE_SIZE, i), 1) << "write should succeed";
         word_t value;
         ASSERT_EQ(VMread(5 * i * PAGE_SIZE, &value), 1) << "immediate read should succeed";
         ASSERT_EQ(uint64_t(value), i) << "immediate read: wrong value read";
+
+        if (PERFORM_INTERMEDIATE_CHECKS)
+        {
+            setLogging(false);
+            for (uint64_t j = 0; j <= i; ++j)
+            {
+                if (5 * j * PAGE_SIZE >= VIRTUAL_MEMORY_SIZE)
+                {
+                    continue;
+                }
+//            if (j == 0 && i == 46) {
+//                setLogging(true);
+//            }
+                word_t checkVal;
+                ASSERT_EQ(VMread(5 * j * PAGE_SIZE, &checkVal), 1) << "read should succeed";
+                if (uint64_t(checkVal) != j)
+                {
+                    std::cout << "Mismatch for j = " << j << ", expected VM = " << 5 * j * PAGE_SIZE
+                              << " to have value " << j
+                              << ", got " << checkVal << " instead - re-reading. " << std::endl;
+                    setLogging(true);
+                    ASSERT_EQ(VMread(5 * j * PAGE_SIZE, &checkVal), 1) << "read should succeed";
+                    ASSERT_EQ(uint64_t(checkVal), j) << "immediate reads, re-scan: wrong value was read";
+                    setLogging(false);
+                    FAIL() << "immediate read failed, only succeeded after re-scan";
+
+                }
+            }
+            setLogging(true);
+        }
     }
 
+
     for (uint64_t i = 0; i < (2 * NUM_FRAMES); ++i) {
+        if (5 * i * PAGE_SIZE >= VIRTUAL_MEMORY_SIZE)
+        {
+            continue;
+        }
         word_t value;
         ASSERT_EQ(VMread(5 * i * PAGE_SIZE, &value), 1) << "read should succeed";
-        printf("reading from %llu %d\n", (long long int) i, value);
+        std::cout << "Read from " << 5 * i * PAGE_SIZE << " the value " << value << ", the expected value is " << i << std::endl;
         ASSERT_EQ(uint64_t(value), i) << "wrong value was read";
     }
 }
 
-#endif
+
