@@ -8,10 +8,6 @@
 #include <memory>
 #include <sstream>
 
-/** Used for debugging purposes, zeroes and initializes the entire memory */
-void fullyInitialize();
-
-
 
 class Trace {
     static std::unique_ptr<std::stringstream> ss;
