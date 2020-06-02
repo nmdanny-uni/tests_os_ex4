@@ -40,7 +40,7 @@ using PhysicalAddressToValueMap = std::unordered_map<uint64_t, word_t>;
       if (value != expectedValue) {
         return ::testing::AssertionFailure()
                << "Expected RAM at address " << physicalAddr
-               << " to contain value " << expectedValue;
+               << " to contain value " << expectedValue << ", but instead it contains " << value;
         };
     }
     return ::testing::AssertionSuccess();

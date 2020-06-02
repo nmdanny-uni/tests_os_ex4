@@ -44,7 +44,7 @@ TEST(FlowTests, FlowTest)
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMrestore(4, 6)"
-    })) << "PMrestore(4, 6) should've been called, see PDF";
+    })) << "See PDF page 13 on why PMrestore is expected after reading value 13";
 
 
     // the physical location 14 shouldn't have been changed
@@ -72,10 +72,49 @@ TEST(FlowTests, FlowTest)
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMrestore(7, 3)"
-    })) << "PMrestore(7, 3) should've been called, see PDF page 16";
+    })) << "see PDF page 16 on why PMrestore is expected after reading virtual address 6";
+
+
+    // the physical location 15 shouldn't have been changed
+    word_t valueAtPhysAddr15;
+    PMread(15, &valueAtPhysAddr15);
+    ASSERT_EQ(valueAtPhysAddr15, 0) << "Nothing in thee've touched physical address 14";
+    // the virtual address 31 will map to physical address 15 (see PDF why this is true)
+    PMwrite(15, 7331);
+
 
     ASSERT_EQ(VMread(31, &gotten), 1) << "VMread(31, &gotten) should succeed";
 
+    expectedAddrToValMap = {
+        {0, 1},
+        {1, 4},
+        {2, 5},
+        {3, 0},
+        {4, 0},
+        {5, 7}, // TODO in the pdf this is 0, see moodle
+        {6, 0},
+        {7, 2},
+        {8, 0},
+        {9, 3},
+        {10, 0},
+        {11, 6},
+        {12, 0},
+        {13, 0},
+        // {14, ?}, 14 contains VM[30], which wasn't saved anywhere
+        {15, 7331},
+    };
+
+    ASSERT_TRUE(WroteExpectedValues(expectedAddrToValMap));
+
+    ASSERT_TRUE(LinesContainedInTrace(trace, {
+        "PMevict(4, 6)", // see pdf page 20
+        "PMevict(7, 3)",  // see pdf page 26-27          now page number 3 contains VM[6]=1337, and VM[7]=unknown
+        "PMrestore(7, 15)" // see pdf page 26-27
+    })) << "See PDF why these evicts were expected";
+
+    // page 3 at offset 0 includes 1337, that is virtual address 0b00110 = 6
+    ASSERT_EQ(VMread(6, &gotten), 1) << "should be able to read value";
+    ASSERT_EQ(gotten, 1337) << "Page 3 at offset 0, that is, virtual address 6, should include 1337.";
 }
 
 #else
