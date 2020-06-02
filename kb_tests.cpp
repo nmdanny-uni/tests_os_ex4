@@ -288,7 +288,7 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
             continue;
         }
 
-        std::cout << "Writing to " << 5 * i * PAGE_SIZE << " the value " << i << std::endl;
+        // std::cout << "Writing to " << 5 * i * PAGE_SIZE << " the value " << i << std::endl;
         ASSERT_EQ(VMwrite(5 * i * PAGE_SIZE, i), 1) << "write should succeed";
         word_t value;
         ASSERT_EQ(VMread(5 * i * PAGE_SIZE, &value), 1) << "immediate read should succeed";
@@ -330,7 +330,7 @@ TEST(SimpleTests, Can_Read_Then_Write_Memory_Original)
         }
         word_t value;
         ASSERT_EQ(VMread(5 * i * PAGE_SIZE, &value), 1) << "read should succeed";
-        std::cout << "Read from " << 5 * i * PAGE_SIZE << " the value " << value << ", the expected value is " << i << std::endl;
+        // std::cout << "Read from " << 5 * i * PAGE_SIZE << " the value " << value << ", the expected value is " << i << std::endl;
         ASSERT_EQ(uint64_t(value), i) << "wrong value was read";
     }
 }

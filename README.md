@@ -17,84 +17,103 @@ the instructions, try them on the Aquarium.
    as well as an alternative set of memory constants, depending on preprocessor flag.
    
 3. Use the following for `YOUR_PROJECT_ROOT/CMakeLists.txt`:
-
-    ``` cmake
-
-    cmake_minimum_required(VERSION 3.1)
-
-
-    # Project configuration
-    project(ex4 VERSION 1.0 LANGUAGES C CXX)
-
-
-
-    set(vm_source_files
-            VirtualMemory.h VirtualMemory.cpp
-            PhysicalMemory.h PhysicalMemory.cpp
-            MemoryConstants.h
-    # ------------- You may only modify the following section ----------- #
-            # add other source files here
-            )
-
-
-    # you can add -O2 or other flags, not necessary though
-    set(vm_compile_options -Wall -Wextra -g)
-
-
-    # ------------ Do not modify anything below these lines ------------- #
-
-    set(vm_link_libraries)
-    set(vm_compile_definitions INC_TESTING_CODE)
-
-    set(USE_SPEEDLOG OFF)
-
-    if(USE_SPEEDLOG)
-        add_subdirectory(spdlog)
-        list(APPEND vm_link_libraries spdlog::spdlog)
-        list(APPEND vm_compile_definitions USE_SPEEDLOG)
-    endif()
-
-
-    add_library(VirtualMemory ${vm_source_files})
-    set_property(TARGET VirtualMemory PROPERTY CXX_STANDARD 11)
-    target_compile_options(VirtualMemory PUBLIC ${vm_compile_options})
-    target_link_libraries(VirtualMemory PUBLIC ${vm_link_libraries})
-    target_compile_definitions(VirtualMemory PUBLIC ${vm_compile_definitions})
-
-    # the only difference between these targets is that the one below has
-    # has 'TEST_CONSTANTS' as a preprocessor variable, which is used in 'MemoryConstants.h'
-
-    add_library(TestVirtualMemory ${vm_source_files})
-    set_property(TARGET TestVirtualMemory PROPERTY CXX_STANDARD 11)
-    target_compile_options(TestVirtualMemory PUBLIC ${vm_compile_options})
-    target_link_libraries(TestVirtualMemory PUBLIC ${vm_link_libraries})
-    target_compile_definitions(TestVirtualMemory PUBLIC ${vm_compile_definitions} TEST_CONSTANTS)
-
-    # Add tests subdirectory
-    add_subdirectory(tests)
-
-
-    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-    ```
-
-    You may only modify `vm_source_files` and optionally `vm_compile_options`, you must not touch anything else in this CMakeLists.txt.
+   ```cmake
+   cmake_minimum_required(VERSION 3.1)
+   
+   
+   
+   # Project configuration
+   project(ex4 VERSION 1.0 LANGUAGES C CXX)
+   
+   set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+   
+   # ------------- You may only modify the following section ----------- #
+   set(vm_source_files
+           VirtualMemory.h VirtualMemory.cpp
+           PhysicalMemory.h PhysicalMemory.cpp
+           MemoryConstants.h
+   
+           # add your own files here
+           )
+   
+   set(vm_compile_options -Wall -Wextra -g -O2)
+   
+   
+   # ------------ Do not modify anything below these lines ------------- #
+   
+   set(vm_link_libraries)
+   
+   set(vm_compile_definitions INC_TESTING_CODE)
+   
+   set(USE_SPEEDLOG OFF)
+   
+   if(USE_SPEEDLOG)
+       add_subdirectory(spdlog)
+       list(APPEND vm_link_libraries spdlog::spdlog)
+       list(APPEND vm_compile_definitions USE_SPEEDLOG)
+   endif()
+   
+   
+   function(createVMTarget targetName define)
+       add_library(${targetName} ${vm_source_files})
+       set_property(TARGET ${targetName} PROPERTY CXX_STANDARD 11)
+       target_compile_options(${targetName} PUBLIC ${vm_compile_options})
+       target_link_libraries(${targetName} PUBLIC ${vm_link_libraries})
+       target_compile_definitions(${targetName} PUBLIC ${vm_compile_definitions} ${define})
+   endfunction()
+   
+   
+   # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   # ---------------- You may modify the following -----------------
+   # You can comment out some of these to speedup compilation,
+   # but make sure you comment the corresponding lines in tests/CMakeLists.txt
+   
+   createVMTarget(VirtualMemory NORMAL_CONSTANTS)
+   createVMTarget(TestVirtualMemory TEST_CONSTANTS)
+   createVMTarget(SingleTableVirtualMemory SINGLE_TABLE_CONSTANTS)
+   createVMTarget(NoTableVirtualMemory NO_PAGE_TABLE_CONSTANTS)
+   createVMTarget(UnreachableFramesVirtualMemory UNREACHABLE_FRAMES_CONSTANTS)
+   createVMTarget(NoEvictionVirtualMemory NO_EVICTION_CONSTANTS)
+   
+   # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   
+   # Add tests
+   add_subdirectory(tests)
+   
+   ```
+    You only have to modify `vm_source_files` and optionally `vm_compile_options`.
     
     
-## How are the tests organized, how do they work
+## A note about test executables
 
-Firstly, you may have noticed that there are two library targets in the above CMakeLists, and two test executable targets in the tests CMakeLists
+Firstly, you may have noticed that there are several library targets in the above CMakeLists, and several executable targets in the tests CMakeLists
+Each one of them is compiled with different constants, yielding different page table hierarchies:
 
-- The first executable, `ex4TestsNormalConstants`, is linked with the library target `VirtualMemory`
+- The first executable, `ex4Tests_NormalConstants`, is linked with the library target `VirtualMemory`
   and uses the same constants in the default `MemoryConstants.h` provided in the exercise
+  When compiling in this mode, the preprocessor variable `NORMAL_CONSTANTS` is defined.
   
-- The second executable, `ex4TestsSmallConstants`, is linked with the library target `TestVirtualMemory`
+- The second executable, `ex4Tests_SmallConstants`, is linked with the library target `TestVirtualMemory`
   and uses smaller constants that correspond to the example in the flow example PDF.
   When compiling in this mode, the preprocessor variable `TEST_CONSTANTS` is defined.
   
 The tests file (`kb_tests.cpp`) uses `TEST_CONSTANTS` to determine whether to compile `FlowTest` or 
 `Can_Read_And_Write_Memory_Once` - depending on which executable target is being compiled:
 
+There are also a few other executables:
+
+- `ex4Tests_SingleTable`: contains a single page table
+
+- `ex4Tests_NoTable`: No page table, direct access to frames
+
+- `ex4Tests_UnreachableFrames`: Virtual memory size smaller than physical size, not all frames in RAM can be accessed
+
+- `ex4Tests_NoEviction`: Virtual memory size == physical size, therefore there should never be an eviction
+
+   (TODO: add test that no evictions actually happen)
+
+
+## What tests are there, what do they do?
 
 - `Can_Read_And_Write_Memory_Once` is a very basic test, using the normal constants, it writes a value
   and then reads it, ensures the read value matches the written value, and then it checks the physical
@@ -162,15 +181,15 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
 
    - `cd YOUR_PROJECT_ROOT/cmake-build-debug/tests/`
    
-   - Run either `./ex4TestsNormalConstants` or `./ex4TestsSmallConstants`
-     (I recommend starting with `./ex4TestsSmallConstants` as it's faster)
+   - Run either `./ex4Tests_NormalConstants` or `./ex4Tests_SmallConstants`
+     (I recommend starting with `./ex4Tests_SmallConstants` as it's faster)
      
      You can add glob patterns via `--gtest_filter="*PATTERN*"`, for example, some useful patterns:
-     - `./ex4TestsSmallConstants --gtest_filter="*Flow*"`
-     - `./ex4TestsSmallConstants --gtest_filter="*Random_Addresses*"`
-     - `./ex4TestsNormalConstants --gtest_filter="*Once*"`
-     - `./ex4TestsNormalConstants --gtest_filter="*Original*"`
-     - `./ex4TestsNormalConstants --gtest_filter="*Random_Addresses*"`
+     - `./ex4Tests_SmallConstants --gtest_filter="*Flow*"`
+     - `./ex4Tests_SmallConstants --gtest_filter="*Random_Addresses*"`
+     - `./ex4Tests_NormalConstants --gtest_filter="*Once*"`
+     - `./ex4Tests_NormalConstants --gtest_filter="*Original*"`
+     - `./ex4Tests_NormalConstants --gtest_filter="*Random_Addresses*"`
 
 ### Via CLion
 
@@ -179,16 +198,20 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
    - `File | Reload CMake Project`
    - `Build All in 'Debug'`
 
-2. Add test configurations via `Run | Edit Configurations... | + | Google Test`,
-   fill them as follows:
+2. CLion should generate test configurations automatically, see `Run | Run...`
+
+   You can add your own test configurations(or edit the above), e.g, to add
+   a glob pattern as follows: `Run | Edit Configurations... | + | Google Test`
+   
+   Fill with:
    
    - Name: some name of your choice for the test
    - Test kind: `Pattern`
    - Pattern: keep this empty to run all tests for the target, or a glob pattern as explained above.
-   - Target: either `ex4TestsNormalConstants` or `ex4TestsSmallConstants` - I recommend you writes
-     at least two
+   - Target: anything that begins with `ex4Tests_`
      
    Here's an example: ![Run configs](images/run-configurations.png)
+   
    
 ## Tip - editing test files in CLion
 
@@ -199,22 +222,38 @@ Therefore, you can tell CLion in which configuration you are by changing the "re
 example: ![Resolve context](images/resolve-contexts.png)
 
 Note that whenever you run a test executable, CLion will automatically change to the proper resolve context, e.g, if you run
-`ex4TestsNormalConstants`, then `FlowTest` will become greyed out and `Can_Read_And_Write_Memory_Once` will become normal.
+`ex4Tests_NormalConstants`, then `FlowTest` will become greyed out and `Can_Read_And_Write_Memory_Once` will become normal.
 
+## Tweaking the tests
+
+- There are no prints/prints were commented out so the tests go faster. For debugging, you may want to enable them
+
+- Some constants like `RANDOM_TEST_ITERATIONS_COUNT` and the upper bounds in `TESTS_PARAMETERS` may cause tests to be
+  too slow, feel free to change them
+
+- All random aspects use a predetermined seed by default, you can change this at `Common.h` by changing`USE_DETERMINED_SEED`
+  to false. 
+
+- Using these tests can greatly increase compilation time, since they're compiling both the executable and the tests
+  multiple times for each constants configuration.
+  
+  If this bothers you, you can disable library targets by commenting `createVMTarget` lines at `PROJECT_ROOT/CMakeLists.txt`
+  and their corresponding `createTestTarget` lines at `PROJECT_ROOT/tests/CMakeLists.txt`
 
 ## General tips
 
 Debugging this exercise can be very tricky, while the tests themselves are very simple(after all, there are only 2 functions you need to implement),
 there is a lot going on under the hood.
 
-Therefore, don't rely on these tests too much, and make your own tests, you should also test the internal parts of your implemenation wherever possible
+Therefore, don't rely on these tests too much, and make your own tests, you should also test the internal parts of your 
+implementation wherever possible.
+
 `FlowTest` is a good test because you can draw the entire page table hierarchy on paper and visualize it, just like the PDF does.
-If you pass this test but fail more complicated examples, try creating similar tests for slightly more complicated scenarios.
+If you pass this test but fail more complicated examples, try isolating the problem, perhaps by using smaller constants
+numbers, drawing the table yourself, and creating a similar test which tracks every aspect.
 
 Some general tips are:
 
-
-  
 
 - Use many, many many asserts in your program. For reference, I have 38 asserts not including those in PhysicalMemory. 
   These have helped me uncover many bugs and better understand the exercise.

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1)
 
 project(ex4_testers VERSION 1.0 LANGUAGES C CXX)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 #######################################
 ### SETTING UP GOOGLE TEST ###
 
@@ -40,22 +42,16 @@ endif()
 
 #######################################
 
-if(NOT vm_source_files)
-    message(FATAL_ERROR "You did not set the list of source files in your CMakeLists.txt, make sure you read the README")
-endif()
 
-
-
+# If you have your own test files you'd like to add, do so below
 set(test_sources kb_tests.cpp Common.h)
-
 set(test_compile_options -Wall -Wextra -g)
 
 if(INCLUDE_PRIVATE_TESTS)
     list(APPEND test_sources private/BitUtilsTests.cpp)
 endif()
 
-
-
+# Do not modify this function
 function(createTestTarget testTargetName libraryTargetName)
     add_executable(${testTargetName} ${test_sources})
     target_include_directories(${testTargetName} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
@@ -64,9 +60,13 @@ function(createTestTarget testTargetName libraryTargetName)
     target_compile_options(${testTargetName} PUBLIC ${test_compile_options})
 endfunction()
 
-createTestTarget(ex4TestsNormalConstants VirtualMemory)
-createTestTarget(ex4TestsSmallConstants TestVirtualMemory)
+# You can comment out these targets to speedup compilation
+
+createTestTarget(ex4Tests_NormalConstants VirtualMemory)
+createTestTarget(ex4Tests_SmallConstants TestVirtualMemory)
+createTestTarget(ex4Tests_SingleTable SingleTableVirtualMemory)
+createTestTarget(ex4Tests_NoTable NoTableVirtualMemory)
+createTestTarget(ex4Tests_UnreachableFrames UnreachableFramesVirtualMemory)
+createTestTarget(ex4Tests_NoEviction NoEvictionVirtualMemory)
 
 
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

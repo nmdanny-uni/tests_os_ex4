@@ -4,36 +4,57 @@
 #include <stdint.h>
 
 
-// self remainder:: 1LL << x == 2 ** x
+
+#ifdef TEST_CONSTANTS
+
+#define OFFSET_WIDTH 1
+#define PHYSICAL_ADDRESS_WIDTH 4
+#define VIRTUAL_ADDRESS_WIDTH 5
+
+#elif NORMAL_CONSTANTS
+
+#define OFFSET_WIDTH 4
+#define PHYSICAL_ADDRESS_WIDTH 10
+#define VIRTUAL_ADDRESS_WIDTH 20
+
+#elif SINGLE_TABLE_CONSTANTS
+
+#define OFFSET_WIDTH 5
+#define PHYSICAL_ADDRESS_WIDTH 6
+#define VIRTUAL_ADDRESS_WIDTH 10
+
+#elif NO_PAGE_TABLE_CONSTANTS
+
+#define OFFSET_WIDTH 5
+#define PHYSICAL_ADDRESS_WIDTH 10
+#define VIRTUAL_ADDRESS_WIDTH 5
+
+#elif UNREACHABLE_FRAMES_CONSTANTS
+
+#define OFFSET_WIDTH 3
+#define PHYSICAL_ADDRESS_WIDTH 9
+#define VIRTUAL_ADDRESS_WIDTH 6
+
+#elif NO_EVICTION_CONSTANTS
+
+#define OFFSET_WIDTH 4
+#define PHYSICAL_ADDRESS_WIDTH 8
+#define VIRTUAL_ADDRESS_WIDTH 8
+
+#else
+
+#error "You didn't define which constants to use"
+
+#endif
+
+
+/* ----------- common to all constant configurations -------------- */
 
 // word
 typedef int word_t;
 
 // number of bits in a word
 #define WORD_WIDTH (sizeof(word_t) * CHAR_BIT)
-
-#ifdef TEST_CONSTANTS
-
-#define OFFSET_WIDTH 1
-
-#define PHYSICAL_ADDRESS_WIDTH 4
-
-#define VIRTUAL_ADDRESS_WIDTH 5
-
-#else
-
-// number of bits in the offset, that is, number of bits used to encode a single page in the
-// hierarchy, or the frame("last page")
-#define OFFSET_WIDTH 4
-
-// number of bits in a physical address
-#define PHYSICAL_ADDRESS_WIDTH 10
-
-
-// number of bits in a virtual address
-#define VIRTUAL_ADDRESS_WIDTH 20
-
-#endif
 
 // page/frame size in words
 // in this implementation this is also the number of entries in a table
@@ -54,6 +75,5 @@ typedef int word_t;
 // number of pages in the virtual memory
 #define NUM_PAGES (VIRTUAL_MEMORY_SIZE / PAGE_SIZE)
 
-// TODO: why do we have '-1' and not '-OFFSET_WIDTH'?
-//       maybe as an alternative to ceil
-#define TABLES_DEPTH ((VIRTUAL_ADDRESS_WIDTH - 1) / OFFSET_WIDTH)
+#define CEIL(VARIABLE) ( (VARIABLE - (int)VARIABLE)==0 ? (int)VARIABLE : (int)VARIABLE+1 )
+#define TABLES_DEPTH CEIL((((VIRTUAL_ADDRESS_WIDTH - OFFSET_WIDTH) / (double)OFFSET_WIDTH)))
