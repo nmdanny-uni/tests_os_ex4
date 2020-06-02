@@ -54,19 +54,19 @@ if(INCLUDE_PRIVATE_TESTS)
     list(APPEND test_sources private/BitUtilsTests.cpp)
 endif()
 
-add_executable(ex4TestsNormalConstants ${test_sources})
-target_include_directories(ex4TestsNormalConstants PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
-target_link_libraries(ex4TestsNormalConstants PRIVATE VirtualMemory gtest_main)
-set_property(TARGET ex4TestsNormalConstants PROPERTY CXX_STANDARD 11)
-target_compile_options(ex4TestsNormalConstants PUBLIC ${test_compile_options})
 
-# The difference between these configurations is that the one below links to 'TestVirtualMemory'
-# and the above links to 'VirtualMemory' library.
 
-add_executable(ex4TestsSmallConstants ${test_sources})
-target_include_directories(ex4TestsSmallConstants PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
-target_link_libraries(ex4TestsSmallConstants PRIVATE TestVirtualMemory gtest_main)
-set_property(TARGET ex4TestsSmallConstants PROPERTY CXX_STANDARD 11)
-target_compile_options(ex4TestsSmallConstants PUBLIC ${test_compile_options})
+function(createTestTarget testTargetName libraryTargetName)
+    add_executable(${testTargetName} ${test_sources})
+    target_include_directories(${testTargetName} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../)
+    target_link_libraries(${testTargetName} PRIVATE ${libraryTargetName} gtest_main)
+    set_property(TARGET ${testTargetName} PROPERTY CXX_STANDARD 11)
+    target_compile_options(${testTargetName} PUBLIC ${test_compile_options})
+endfunction()
+
+createTestTarget(ex4TestsNormalConstants VirtualMemory)
+createTestTarget(ex4TestsSmallConstants TestVirtualMemory)
+
+
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

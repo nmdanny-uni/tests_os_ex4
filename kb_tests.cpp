@@ -124,7 +124,7 @@ TEST(FlowTests, FlowTest)
     ASSERT_EQ(gotten, 1337) << "Page 3 at offset 0, that is, virtual address 6, should include 1337.";
 }
 
-#else
+#elif NORMAL_CONSTANTS
 
 
 /** The simplest test when using the default constants
