@@ -351,6 +351,8 @@ TEST(RandomTests, Random_Addresses_Random_Values)
     std::uniform_int_distribution<uint64_t> vmAddrDist(0, VIRTUAL_MEMORY_SIZE-1);
     std::uniform_int_distribution<word_t> valueDist(0, std::numeric_limits<word_t>::max());
 
+    setLogging(true);
+
     for (uint64_t i = 0; i < RANDOM_TEST_ITERATIONS_COUNT; ++i)
     {
         uint64_t virtAddr = vmAddrDist(eng);

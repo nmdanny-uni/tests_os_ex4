@@ -108,7 +108,8 @@ There are also a few other executables:
 
 - `ex4Tests_UnreachableFrames`: Virtual memory size smaller than physical size, not all frames in RAM can be accessed
 
-- `ex4Tests_NoEviction`: Virtual memory size == physical size, therefore there should never be an eviction
+- `ex4Tests_NoEviction`: Virtual memory size == physical size, and no page tables,
+  so there should never be an eviction(no space wasted on page tables)
 
    (TODO: add test that no evictions actually happen)
 
