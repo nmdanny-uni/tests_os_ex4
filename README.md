@@ -71,7 +71,6 @@ the instructions, try them on the Aquarium.
    createVMTarget(VirtualMemory NORMAL_CONSTANTS)
    createVMTarget(TestVirtualMemory TEST_CONSTANTS)
    createVMTarget(SingleTableVirtualMemory SINGLE_TABLE_CONSTANTS)
-   createVMTarget(NoTableVirtualMemory NO_PAGE_TABLE_CONSTANTS)
    createVMTarget(UnreachableFramesVirtualMemory UNREACHABLE_FRAMES_CONSTANTS)
    createVMTarget(NoEvictionVirtualMemory NO_EVICTION_CONSTANTS)
    
@@ -104,14 +103,14 @@ There are also a few other executables:
 
 - `ex4Tests_SingleTable`: contains a single page table
 
-- `ex4Tests_NoTable`: No page table, direct access to frames
-
 - `ex4Tests_UnreachableFrames`: Virtual memory size smaller than physical size, not all frames in RAM can be accessed
 
 - `ex4Tests_NoEviction`: Virtual memory size == physical size, and no page tables,
   so there should never be an eviction(no space wasted on page tables)
+  
+  NOTE: I am not sure if this scenario should be supported, since it's quite an edge case.
+  TODO: check this on forum. 
 
-   (TODO: add test that no evictions actually happen)
 
 
 ## What tests are there, what do they do?

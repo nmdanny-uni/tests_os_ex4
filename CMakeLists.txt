@@ -65,7 +65,6 @@ endfunction()
 createTestTarget(ex4Tests_NormalConstants VirtualMemory)
 createTestTarget(ex4Tests_SmallConstants TestVirtualMemory)
 createTestTarget(ex4Tests_SingleTable SingleTableVirtualMemory)
-createTestTarget(ex4Tests_NoTable NoTableVirtualMemory)
 createTestTarget(ex4Tests_UnreachableFrames UnreachableFramesVirtualMemory)
 createTestTarget(ex4Tests_NoEviction NoEvictionVirtualMemory)
 
