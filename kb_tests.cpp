@@ -67,8 +67,16 @@ TEST(FlowTests, FlowTest)
         {9, 3},
         {11, 6},  // added during VMread(6)
         {13, 7}, // added during VMread(6)
-        {14, 1337} // added during VMread(6)
+        {14, 1337} // should not be changed during read, see note:
     };
+
+    // *NOTE: The fact that address 14 contains 1337 is undefined behavior, because
+    // we are restoring a page that was never evicted to disk. If you didn't modify
+    // PhysicalMemory.cpp this should not matter, but if you did something else,
+    // such as zero the frame manually within PMrestore, then this won't work.
+    // (There is no need to zero the frame, but if you're doing so for debugging purposes
+    //  then you might want to move {14, 1337}
+
 
 
     gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
@@ -105,7 +113,7 @@ TEST(FlowTests, FlowTest)
         {12, 0},
         {13, 0},
         // {14, ?}, 14 contains VM[30], which wasn't saved anywhere
-        {15, 7331},
+        {15, 7331}, // see note above
     };
 
     gottenAddrToValMap = readGottenPhysicalAddressToValueMap(expectedAddrToValMap);
@@ -113,15 +121,10 @@ TEST(FlowTests, FlowTest)
 
     ASSERT_TRUE(LinesContainedInTrace(trace, {
         "PMevict(4, 6)", // see pdf page 20
-        "PMevict(7, 3)",  // see pdf page 26-27          now page number 3 contains VM[6]=1337, and VM[7]=unknown
+        "PMevict(7, 3)",  // see pdf page 26-27
         "PMrestore(7, 15)" // see pdf page 26-27
     })) << "See PDF why these evicts were expected";
 
-    // the following isn't in the PDF, but should still work
-
-    // page 3 at offset 0 includes 1337, that is virtual address 0b00110 = 6
-    ASSERT_EQ(VMread(6, &gotten), 1) << "should be able to read value";
-    ASSERT_EQ(gotten, 1337) << "Page 3 at offset 0, that is, virtual address 6, should include 1337.";
 }
 
 #elif NORMAL_CONSTANTS

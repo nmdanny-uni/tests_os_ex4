@@ -130,6 +130,12 @@ There are also a few other executables:
   
   It even checks ensures that some of the `PMrestore` and `PMevict` functions were called
   
+  Note, this test also relies on the assumption that PMrestore doesn't zero/modify the frame
+  in case it was never evicted, if you're using the PhysicalMemory I provided(and this behaves the
+  same like the one provided in the exercise), this shouldn't matter. If you decided to zero the
+  frame in such cases (by modifying PhysicalMemory.cpp), then you should remove the lines containing
+  `{14, 1337}` and `{15, 7331}`
+  
 
 There are also tests that are more-or-less independent from the constants:
 
