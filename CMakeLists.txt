@@ -47,10 +47,6 @@ endif()
 set(test_sources kb_tests.cpp Common.h)
 set(test_compile_options -Wall -Wextra -g)
 
-if(INCLUDE_PRIVATE_TESTS)
-    list(APPEND test_sources private/BitUtilsTests.cpp)
-endif()
-
 # Do not modify this function
 function(createTestTarget testTargetName libraryTargetName)
     add_executable(${testTargetName} ${test_sources})
@@ -64,8 +60,7 @@ endfunction()
 
 createTestTarget(ex4Tests_NormalConstants VirtualMemory)
 createTestTarget(ex4Tests_SmallConstants TestVirtualMemory)
+createTestTarget(ex4Tests_OffsetDifferentThanIndex OffsetDifferentThanIndexMemory)
 createTestTarget(ex4Tests_SingleTable SingleTableVirtualMemory)
 createTestTarget(ex4Tests_UnreachableFrames UnreachableFramesVirtualMemory)
 createTestTarget(ex4Tests_NoEviction NoEvictionVirtualMemory)
-
-

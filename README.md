@@ -70,6 +70,7 @@ the instructions, try them on the Aquarium.
    
    createVMTarget(VirtualMemory NORMAL_CONSTANTS)
    createVMTarget(TestVirtualMemory TEST_CONSTANTS)
+   createVMTarget(OffsetDifferentThanIndexMemory OFFSET_DIFFERENT_FROM_INDEX)
    createVMTarget(SingleTableVirtualMemory SINGLE_TABLE_CONSTANTS)
    createVMTarget(UnreachableFramesVirtualMemory UNREACHABLE_FRAMES_CONSTANTS)
    createVMTarget(NoEvictionVirtualMemory NO_EVICTION_CONSTANTS)
@@ -100,6 +101,8 @@ The tests file (`kb_tests.cpp`) uses `TEST_CONSTANTS` to determine whether to co
 `Can_Read_And_Write_Memory_Once` - depending on which executable target is being compiled:
 
 There are also a few other executables:
+
+- `ex4Tests_OffsetDifferentThanIndex`: Virtual address width isn't divisble by offset width(so the first index is of different width)
 
 - `ex4Tests_SingleTable`: contains a single page table
 
@@ -157,9 +160,6 @@ There are also tests that are more-or-less independent from the constants:
   This is probably the strongest test, but also the least interpretable, so I recommend focusing on
   other tests first as they're easier to debug
 
-
-Note, the folder `private` contains private tests for my own implementation, they don't belong to this test suite, so ignore them since you can't use them anyway.
-(I do recommend writing such tests on your own, especially for testing tricky bitwise operations)
 
 ## Running the tests
 
