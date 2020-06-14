@@ -177,6 +177,7 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
     cd YOUR_PROJECT_ROOT
     rm -rf cmake-build-debug
     mkdir cmake-build-debug
+    cd cmake-build-debug
     cmake ..
     make -j 4
     ```
