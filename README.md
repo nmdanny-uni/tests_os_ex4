@@ -139,6 +139,9 @@ There are also a few other executables:
   frame in such cases (by modifying PhysicalMemory.cpp), then you should remove the lines containing
   `{14, 1337}` and `{15, 7331}`
   
+  It also assumes that you don't manually clear the frame(content page) before it is restored, while
+  technically doing so is not wrong, it is redundant, and for testing purposes I want to check as many
+  cells as possible, therefore I also check cells that were just evicted.
 
 There are also tests that are more-or-less independent from the constants:
 
@@ -168,6 +171,11 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
 
 **Note** - in the glob pattern, always surround them with asterisks, because the full test name is much longer than what I specified above.
 
+**Note about skipped tests**
+
+Do not be alarmed if you see `SKIPPED` when running tests, this is OK - some tests use
+constants that are too big for a test executable to handle, so they're always automatically
+skipped.
 
 ### Via Terminal
 
@@ -197,6 +205,20 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
      - `./ex4Tests_NormalConstants --gtest_filter="*Once*"`
      - `./ex4Tests_NormalConstants --gtest_filter="*Original*"`
      - `./ex4Tests_NormalConstants --gtest_filter="*Random_Addresses*"`
+     
+     
+   - Tip, you can run all tests with the following command: 
+   
+     `find -iregex "./ex4Tests_.*" -exec {} > testOut \;`
+     
+     Then, inspect the contents of `testOut` - if the word `FAILED` does not appear(and the tests
+     indeed ran, aka, there is a bunch of output), then it means you passed.
+     
+     You can check that by doing `cat testOut | grep "FAILED"`, and ensuring nothing is printed.
+     
+     Alternatively, do `cat testOut | grep "PASSED"` and ensure you have 6 lines(because there are 6
+     executables), the number of tests varies between 10 or 13 depending on the executable,
+     as explained above - some tests are automatically skipped with certain configurations.
 
 ### Via CLion
 
@@ -219,6 +241,12 @@ For example, some valid patterns are `*Original*`, `*Flow*`, `*Random_Addresses*
      
    Here's an example: ![Run configs](images/run-configurations.png)
    
+   
+   **Note:** on some CLion versions(e.g, on HUJI servers), some tests will appear with a grey icon saying terminated.
+   (even if no tests were skipped)
+    
+   I don't know why this happens, might be a bug with CLion. In case of doubt, execute the tests via
+   terminal as explained above.
    
 ## Tip - editing test files in CLion
 
